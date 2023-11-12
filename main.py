@@ -7,8 +7,8 @@ import xgboost as xgb
 import onnxmltools
 
 
-class QSTSquareness:
-    def __init__(self, location: str, separator: str):
+class SquarenessEstimator:
+    def __init__(self, location: str, separator: str, name: str):
         super().__init__()
         self._data: pd = None
         self._location: str = location
@@ -66,6 +66,7 @@ class QSTSquareness:
         ]
         self.x: pd = None
         self.y: pd = None
+        self._name: str = name
 
     def load_data(self) -> None:
         """ load data in a panda dataframe and follows to drop NA values and encoder categorical values"""
@@ -97,8 +98,8 @@ class QSTSquareness:
 
         return _x_train, _x_test, _y_train, _y_test, _shape
 
-    @staticmethod
-    def create_model_xgb(objective: str,
+    def create_model_xgb(self,
+                         objective: str,
                          lr_rate: float,
                          alpha: int,
                          iterations: int,
@@ -110,11 +111,10 @@ class QSTSquareness:
                          _x_test: pd,
                          _y_train: pd,
                          _y_test: pd,
-                         _name: str,
                          debug: bool) -> xgb:
         """ return and save the model trained xgboost """
 
-        model = xgb.XGBRegressor(
+        _model = xgb.XGBRegressor(
             objective=objective,
             learning_rate=lr_rate,
             alpha=alpha,
@@ -128,20 +128,29 @@ class QSTSquareness:
         # train = xgb.DMatrix(x_train, y_train)
         # test = xgb.DMatrix(x_test, y_test)
 
-        model.fit(_x_train, _y_train, eval_set=[(_x_train, _y_train), (_x_test, _y_test)], verbose=debug)
-        results = model.evals_result()
-        model.save_model(f'{_name}.json')
+        _model.fit(_x_train, _y_train, eval_set=[(_x_train, _y_train), (_x_test, _y_test)], verbose=debug)
+        results = _model.evals_result()
+        _model.save_model(f'{self._name}.json')
 
-        return model
+        return _model
+
+    def predict_data(self) -> xgb:
+        """ load the stored JSON model to make testing predictions """
+
+        _model = xgb.XGBRegressor()
+        _model.load_model(f'{self._name}.json')
+        print(f'Best iteration: {_model.best_iteration}')
+
+        return _model
 
 
 def main() -> None:
-    estimator = QSTSquareness('data\\Collecte.csv', ',')
+    estimator = SquarenessEstimator('data\\Collecte.csv', ',', 'model_SquarenessQST')
     estimator.load_data()
 
     x_train, x_test, y_train, y_test, shape = estimator.split_train_test(test_size=0.25, random_state=42, shuffle=True)
 
-    re_train: bool = True
+    re_train: bool = False
     if re_train:
         model = estimator.create_model_xgb(
             'reg:squarederror',
@@ -156,13 +165,10 @@ def main() -> None:
             x_test,
             y_train,
             y_test,
-            'model_SquarenessQST',
             True
         )
     else:
-        model = xgb.XGBRegressor()
-        model.load_model('model_SquarenessQST.json')
-        print(model.best_iteration)
+        model = estimator.predict_data()
 
     input_test: bool = True
     if input_test:
