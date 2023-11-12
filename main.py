@@ -172,7 +172,7 @@ def main() -> None:
 
     input_test: bool = True
     if input_test:
-        test_single_data = x_test.iloc[[9058]]
+        test_single_data = x_test.iloc[[9058]]  # 9058, 2753
         print(f'INPUT DATA:\n{test_single_data.transpose()}')
         predictions = model.predict(test_single_data)
 
