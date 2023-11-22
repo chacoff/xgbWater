@@ -73,8 +73,19 @@ class SquarenessEstimator:
         self._data = pd.read_csv(self._location, sep=self._separator)
         self._drop_nas()
         self._encode_labels()
-        self.x = self._data[self.features]
-        self.y = self._data[self.targets]
+
+        _x = self._data[self.features].copy()
+        _y = self._data[self.targets].copy()
+
+        # @TODO: work around to export to onnx. Pay atttention with name = f"{old_name}_{i}"
+        new_column_names = {old_name: f"f{i}" for i, old_name in enumerate(_x.columns)}
+        _x.rename(columns=new_column_names, inplace=True)
+
+        new_column_names = {old_name: f"f{i}" for i, old_name in enumerate(_y.columns)}
+        _y.rename(columns=new_column_names, inplace=True)
+
+        self.x = _x
+        self.y = _y
 
     def _drop_nas(self) -> None:
         """ drop na values"""
@@ -145,7 +156,7 @@ class SquarenessEstimator:
 
 
 def main() -> None:
-    estimator = SquarenessEstimator('data\\Collecte.csv', ',', 'model_SquarenessQST')
+    estimator = SquarenessEstimator('data\\Collecte_train.csv', ',', 'model_SquarenessQST')
     estimator.load_data()
 
     x_train, x_test, y_train, y_test, shape = estimator.split_train_test(test_size=0.25, random_state=42, shuffle=True)
@@ -172,9 +183,14 @@ def main() -> None:
 
     input_test: bool = True
     if input_test:
-        test_single_data = x_test.iloc[[9058]]  # 9058, 2753
-        print(f'INPUT DATA:\n{test_single_data.transpose()}')
-        predictions = model.predict(test_single_data)
+        # test_single_data = x_test.iloc[[9058]]  # 9058, 2753
+        # print(f'INPUT DATA:\n{test_single_data.transpose()}')
+
+        tester = SquarenessEstimator('data\\Collecte_dev.csv', ',', 'Test')
+        tester.load_data()
+        single_input = tester.x.iloc[[1067]]
+        print(f'INPUT DATA:\n{single_input.transpose()}')
+        predictions = model.predict(single_input)
 
         print(f'\nMOD_DBT_AILE_SUP = {round(float(predictions[0][0]), 4)}\n'
               f'MOD_DBT_AME_SUP = {round(float(predictions[0][1]), 4)}')
