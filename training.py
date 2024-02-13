@@ -128,7 +128,8 @@ class SquarenessEstimator:
         _model = xgb.XGBRegressor(
             objective=objective,
             learning_rate=lr_rate,
-            alpha=alpha,
+            reg_alpha=alpha,
+            scale_pos_weight=5,
             n_estimators=iterations,
             tree_method=tree_method,
             eval_metric=eval_metric,
@@ -145,7 +146,7 @@ class SquarenessEstimator:
 
         return _model
 
-    def predict_data(self) -> xgb:
+    def load_model(self) -> xgb:
         """ load the stored JSON model to make testing predictions """
 
         _model = xgb.XGBRegressor()
@@ -156,18 +157,22 @@ class SquarenessEstimator:
 
 
 def main() -> None:
-    estimator = SquarenessEstimator('data\\Collecte_train.csv', ',', 'model_SquarenessQST')
+    # Parameters
+    re_train: bool = True
+    onnx: bool = False
+
+    # training pipeline
+    estimator = SquarenessEstimator('data\\Collecte_train.csv', ',', 'models\\model_SquarenessQST')
     estimator.load_data()
 
     x_train, x_test, y_train, y_test, shape = estimator.split_train_test(test_size=0.25, random_state=42, shuffle=True)
 
-    re_train: bool = False
     if re_train:
         model = estimator.create_model_xgb(
             'reg:squarederror',
-            0.5,
+            0.1,
             9,
-            3000,
+            5000,
             'exact',
             'rmse',
             0.9,
@@ -179,30 +184,15 @@ def main() -> None:
             True
         )
     else:
-        model = estimator.predict_data()
+        model = estimator.load_model()
 
-    input_test: bool = True
-    if input_test:
-        # test_single_data = x_test.iloc[[9058]]  # 9058, 2753
-        # print(f'INPUT DATA:\n{test_single_data.transpose()}')
-
-        tester = SquarenessEstimator('data\\Collecte_dev.csv', ',', 'Test')
-        tester.load_data()
-        single_input = tester.x.iloc[[1067]]
-        print(f'INPUT DATA:\n{single_input.transpose()}')
-        predictions = model.predict(single_input)
-
-        print(f'\nMOD_DBT_AILE_SUP = {round(float(predictions[0][0]), 4)}\n'
-              f'MOD_DBT_AME_SUP = {round(float(predictions[0][1]), 4)}')
-
-    onnx: bool = False
     if onnx:
         initial_types = [('float_input', onnxmltools.convert.common.data_types.FloatTensorType([None, shape]))]
         onnx_model = onnxmltools.convert_xgboost(model, initial_types=initial_types)
-        onnxmltools.utils.save_model(onnx_model, './model_SquarenessQST.onnx')
+        onnxmltools.utils.save_model(onnx_model, 'models/model_SquarenessQST.onnx')
 
         metadata = {"function": "regression", }
-        with open('./metadata.json', mode='w') as f:
+        with open('models/metadata.json', mode='w') as f:
             json.dump(metadata, f)
 
 
