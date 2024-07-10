@@ -6,50 +6,55 @@ from sklearn.preprocessing import LabelEncoder
 import xgboost as xgb
 import onnxmltools
 
+# CATBOOT >>> USED BY YANDEX
+
 
 class SquarenessEstimator:
-    def __init__(self, location: str, separator: str, name: str):
+    def __init__(self, location: str, separator: str, name: str, preProcess: bool):
         super().__init__()
+        self.noPreProcessData: bool = preProcess
         self._data: pd = None
         self._location: str = location
         self._separator: str = separator
-        self.features: list[str] = [
-            # 'CLE_QST',
-            'MODELE_PILOTAGE',
-            # 'DTE_CREA_REC',
-            # 'CO_ORIG_COUL',
-            # 'AA_COUL',
-            # 'NUM_COUL',
-            # 'NUM_BB',
-            # 'TYPE_BB',
-            # 'TYPE_PROF_MONT',
-            'DIM_PROF_MONT',
-            'TYPE_PROF_LME',
-            # 'DIM_PROF_LME',
-            'PCRT_PROF_LME',
-            'NUTR_VISE',
-            'NUTR_REAL',
-            'QST_HISTAR_VISE',
-            # 'CMPGE_LMG',
-            # 'MONTAGE',
-            # 'NUM_COURANT',
-            'DBT_AILE_INT_SUP',
-            'DBT_AME_SUP',
-            'DBT_AILE_INT_SUP_AVANT_EQ',
-            'DBT_AME_SUP_AVANT_EQ',
-            'DBT_AILE_INT_SUP_REAL',
-            'DBT_AME_SUP_REAL',
-            # 'MODE_ENF_DP',
-            # 'CORR_EQ_AILE_SUP_REAL',
-            # 'CORR_EQ_AME_SUP_REAL',
-            # 'CLE_STAT',
-            # 'NBRE_DEF16_BM',
-            # 'NBRE_BF'
-        ]
-        self.targets: list[str] = [
-            'MOD_DBT_AILE_SUP',
-            'MOD_DBT_AME_SUP'
-        ]
+        # self.features: list[str] = [
+        #     # 'CLE_QST',
+        #     'MODELE_PILOTAGE',
+        #     # 'DTE_CREA_REC',
+        #     # 'CO_ORIG_COUL',
+        #     # 'AA_COUL',
+        #     # 'NUM_COUL',
+        #     # 'NUM_BB',
+        #     # 'TYPE_BB',
+        #     # 'TYPE_PROF_MONT',
+        #     'DIM_PROF_MONT',
+        #     'TYPE_PROF_LME',
+        #     # 'DIM_PROF_LME',
+        #     'PCRT_PROF_LME',
+        #     'NUTR_VISE',
+        #     'NUTR_REAL',
+        #     'QST_HISTAR_VISE',
+        #     # 'CMPGE_LMG',
+        #     # 'MONTAGE',
+        #     # 'NUM_COURANT',
+        #     'DBT_AILE_INT_SUP',
+        #     'DBT_AME_SUP',
+        #     'DBT_AILE_INT_SUP_AVANT_EQ',
+        #     'DBT_AME_SUP_AVANT_EQ',
+        #     'DBT_AILE_INT_SUP_REAL',
+        #     'DBT_AME_SUP_REAL',
+        #     # 'MODE_ENF_DP',
+        #     # 'CORR_EQ_AILE_SUP_REAL',
+        #     # 'CORR_EQ_AME_SUP_REAL',
+        #     # 'CLE_STAT',
+        #     # 'NBRE_DEF16_BM',
+        #     # 'NBRE_BF'
+        # ]
+        # self.targets: list[str] = [
+        #     'MOD_DBT_AILE_SUP',
+        #     'MOD_DBT_AME_SUP'
+        # ]
+        self.features: list[str] =['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+        self.targets: list[str] =['Yr']
         self.categorical_cols: list[str] = [
             'MODELE_PILOTAGE',
             # 'DTE_CREA_REC',
@@ -71,8 +76,9 @@ class SquarenessEstimator:
     def load_data(self) -> None:
         """ load data in a panda dataframe and follows to drop NA values and encoder categorical values"""
         self._data = pd.read_csv(self._location, sep=self._separator)
-        self._drop_nas()
-        self._encode_labels()
+        if self.noPreProcessData:
+            self._drop_nas()
+            self._encode_labels()
 
         _x = self._data[self.features].copy()
         _y = self._data[self.targets].copy()
@@ -159,10 +165,13 @@ class SquarenessEstimator:
 def main() -> None:
     # Parameters
     re_train: bool = True
-    onnx: bool = False
+    onnx: bool = True
 
     # training pipeline
-    estimator = SquarenessEstimator('data\\Collecte_train.csv', ',', 'models\\model_SquarenessQST')
+    estimator = SquarenessEstimator('dataS\\test_Y.csv',
+                                    ';',
+                                    'modelsS\\model_Yr',
+                                    False)
     estimator.load_data()
 
     x_train, x_test, y_train, y_test, shape = estimator.split_train_test(test_size=0.25, random_state=42, shuffle=True)
@@ -170,13 +179,13 @@ def main() -> None:
     if re_train:
         model = estimator.create_model_xgb(
             'reg:squarederror',
-            0.1,
+            0.05,
             9,
-            5000,
+            100000,
             'exact',
             'rmse',
             0.9,
-            20,
+            5000,
             x_train,
             x_test,
             y_train,
@@ -189,10 +198,10 @@ def main() -> None:
     if onnx:
         initial_types = [('float_input', onnxmltools.convert.common.data_types.FloatTensorType([None, shape]))]
         onnx_model = onnxmltools.convert_xgboost(model, initial_types=initial_types)
-        onnxmltools.utils.save_model(onnx_model, 'models/model_SquarenessQST.onnx')
+        onnxmltools.utils.save_model(onnx_model, 'modelsS/model_Yr.onnx')
 
         metadata = {"function": "regression", }
-        with open('models/metadata.json', mode='w') as f:
+        with open('modelsS/metadata.json', mode='w') as f:
             json.dump(metadata, f)
 
 
