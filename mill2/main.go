@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
+	"os"
 )
 
 type db struct {
@@ -11,18 +12,6 @@ type db struct {
 }
 
 var dataBase db = db{}
-
-func (db *db) openDatabase() error {
-
-	database, openingError := sql.Open("sqlite3", "processed.db")
-
-	if openingError != nil {
-		return openingError
-	}
-
-	db.database = database
-	return nil
-}
 
 func main() {
 	dataBase = db{}
@@ -41,10 +30,22 @@ func main() {
 
 }
 
+func (db *db) openDatabase() error {
+	database, openingError := sql.Open("sqlite3", "processed.db")
+
+	if openingError != nil {
+		return openingError
+	}
+
+	db.database = database
+	return nil
+}
+
 func (db *db) getData() ([]string, error) {
 	var timeStamps []string
 
-	rows, queryError := db.database.Query("SELECT Timestamp, Filename FROM Measures WHERE Timestamp < '2024-12-20 15:22:00,000'")
+	sqlQuery, _ := loadSQLFile("sql\\getData.sql")
+	rows, queryError := db.database.Query(sqlQuery)
 
 	if queryError != nil {
 		return nil, queryError
@@ -68,14 +69,12 @@ func (db *db) getData() ([]string, error) {
 	return timeStamps, nil
 }
 
-//WITH FilteredMeasures AS (
-//SELECT Timestamp, Filename
-//FROM Measures
-//WHERE Timestamp < '2024-12-20 15:22:00,000' AND Filename = 'Pass 3'
-//)
-//
-//SELECT MIN(TimeStamp) AS TimeStamp, Filename
-//FROM FilteredMeasures
-//UNION ALL
-//SELECT MAX(TimeStamp) AS TimeStamp, Filename
-//FROM FilteredMeasures;
+func loadSQLFile(filePath string) (string, error) {
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	return string(content), nil
+}

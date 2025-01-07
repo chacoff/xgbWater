@@ -1,17 +1,3 @@
-'''
-WITH FilteredMeasures AS (
-    SELECT TimeStamp, Filename
-    FROM Measures
-    WHERE TimeStamp < '2024-12-20 15:22:00,000' AND Filename = 'Pass 2'
-)
-
-SELECT MIN(TimeStamp) AS TimeStamp, Filename
-FROM FilteredMeasures
-UNION ALL
-SELECT MAX(TimeStamp) AS TimeStamp, Filename
-FROM FilteredMeasures;
-'''
-
 import sqlite3
 import numpy as np
 from sqlite3 import Connection, Cursor
