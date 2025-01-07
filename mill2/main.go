@@ -58,7 +58,6 @@ func main() {
 		observations = append(observations, clusters.Coordinates{value})
 	}
 
-	// Perform k-means clustering with 3 clusters
 	km := kmeans.New()
 	clustersPasses, err := km.Partition(observations, k)
 	if err != nil {
@@ -68,10 +67,22 @@ func main() {
 	// Output results
 	for i, c := range clustersPasses {
 		fmt.Printf("Cluster %d:\n", i+1)
-		for _, obs := range c.Observations {
-			coordinates := obs.(clusters.Coordinates)
-			fmt.Printf("  %.2f - %s\n", coordinates[0], timestampMap[coordinates[0]])
+		//for _, obs := range c.Observations {
+		//	coordinates := obs.(clusters.Coordinates)
+		//	fmt.Printf("  %.2f - %s\n", coordinates[0], timestampMap[coordinates[0]])
+		//}
+
+		if len(c.Observations) > 0 {
+			firstObs := c.Observations[0]
+			lastObs := c.Observations[len(c.Observations)-1]
+
+			firstCoordinates := firstObs.(clusters.Coordinates)
+			lastCoordinates := lastObs.(clusters.Coordinates)
+
+			fmt.Printf("  First: %.2f - %s\n", firstCoordinates[0], timestampMap[firstCoordinates[0]])
+			fmt.Printf("  Last: %.2f - %s\n", lastCoordinates[0], timestampMap[lastCoordinates[0]])
 		}
+
 		fmt.Printf("Centered at: %.3f\n", c.Center[0])
 	}
 }
